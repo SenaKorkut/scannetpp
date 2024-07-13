@@ -1,7 +1,7 @@
 munch
 tqdm
 pyyaml
-numpy
+numpy<2
 imageio
 lz4
 opencv-python

@@ -10,6 +10,10 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 import numpy as np
 import torch
+import os
+import sys
+import pickle
+sys.path.append('/usr/prakt/s0090')
 
 from pytorch3d.structures import Meshes
 from pytorch3d.utils import cameras_from_opencv_projection
@@ -187,28 +191,29 @@ def main(args):
             pix_inst_ids = np.zeros_like(pix_to_face)
             # get instance ids on pixels
             pix_inst_ids[valid_pix_to_face] = pth_data['vtx_instance_anno_id'][mesh_faces_np[pix_to_face[valid_pix_to_face]][:, 0]]
+
+            # Specify the directory and filename
+            directory = '/usr/prakt/s0090/segmentation_scene_results'
+            #filename of the image to save
+            filename_inst = f'{image_name[:-4]}_inst.pkl'
+            filename_sem = f'{image_name[:-4]}_sem.pkl'
+            file_path = os.path.join(directory, filename_inst)
+            #Save pix_inst_ids to a pickle file 
+            with open(file_path, 'wb') as f:
+                pickle.dump(pix_inst_ids, f)
+            print('Saved instance ids to:', file_path)
             # get semantic labels on pixels, initialize to -1
             pix_sem_ids = np.ones_like(pix_to_face) * -1
             # get semantic labels on pixels
             pix_sem_ids[valid_pix_to_face] = pth_data['vtx_labels'][mesh_faces_np[pix_to_face[valid_pix_to_face]][:, 0]]
+            #Save pix_sem_ids to a file in output directory
+            file_path = os.path.join(directory, filename_sem)
+            #Save pix_inst_ids to a pickle file 
+            with open(file_path, 'wb') as f:
+                pickle.dump(pix_sem_ids, f)
+            print('Saved semantic ids to:', file_path)
 
-            # get object 2d bboxes
-            obj_bboxes_2d = {}
             
-            for obj_id in obj_ids:
-                # get a binary image indicating the location of this obj_id
-                obj_mask_2d = pix_inst_ids == obj_id
-                # get the bounding box of these pixels
-                # get the indices of the non-zero pixels
-                nonzero_inds = np.nonzero(obj_mask_2d)
-                # get the min and max of these indices
-                bbox_min = np.min(nonzero_inds, axis=1)
-                bbox_max = np.max(nonzero_inds, axis=1)
-                # store the bbox as x,y,w,h
-                bbox = np.concatenate([bbox_min, bbox_max - bbox_min])
-                # store the bbox in a list
-                obj_bboxes_2d[int(obj_id)] = bbox.tolist()
-
             if cfg.viz:
                 # display the mesh with obj bboxes
                 geoms = []

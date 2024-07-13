@@ -1,19 +1,19 @@
 data:
-  data_root: <data_root>
+  data_root: /storage/user/yez/scannet++/data
 
-  labels_path: <path to semantic labels>
+  labels_path: /storage/user/yez/scannet++/metadata/semantic_classes.txt
   # for instance segmentation
   use_instances: true
-  instance_labels_path: <path to instance labels>
+  instance_labels_path: /storage/user/yez/scannet++/metadata/instance_classes.txt
 
   ## save multiple labels per vertex/point? ##
   # multilabel:
   #   max_gt: 3
   #   multilabel_only: false
 
-  mapping_file: <path to mapping file>
+  mapping_file: /storage/user/yez/scannet++/metadata/semantic_benchmark/map_benchmark.csv
 
-  list_path: <path to scene list>
+  list_path: /storage/user/yez/scannet++/demo_sem_train.txt
 
   ignore_label: -100
 
@@ -27,7 +27,7 @@ data:
     # use segments info to get labels on the vertices, handle multilabels
     - get_labels_on_vertices
     # sample points on the mesh and transfer all vertex info to the points
-    - sample_points_on_mesh
+
 
 # dir to save pth training data
-out_dir: <dir to save pth data>
+out_dir: /usr/prakt/s0090/demo_annotations
