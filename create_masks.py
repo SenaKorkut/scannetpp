@@ -1,5 +1,4 @@
 import pickle
-import pprint
 import torch
 import numpy as np
 from PIL import Image
@@ -117,7 +116,7 @@ if __name__ == "__main__":
 
     # Get top 10 instance labels from metadata file 
     top_labels_dir = '/storage/user/yez/scannet++/metadata/semantic_benchmark/top100_instance.txt'
-    top_labels = get_top_labels(num_labels=10, file_path=top_labels_dir)
+    top_labels = get_top_labels(num_labels=2, file_path=top_labels_dir)
     top_labels = [s.strip() for s in top_labels]
     print("Top Labels:", top_labels)
 
@@ -131,15 +130,6 @@ if __name__ == "__main__":
         if scene_data is not None:
             print("Successfully read the scene file")
 
-        '''dataset_scene_path = os.path.join(dataset_dir, scene.replace(".pth", ""))
-        dslr_scene_path = os.path.join(dataset_scene_path, "dslr", "resized_images")
-        camera_pose_transform_json_path = os.path.join(
-            dataset_scene_path, "dslr", "nerfstudio", "transforms.json"
-        )
-
-        transforms_json = load_json_file(camera_pose_transform_json_path)
-
-        '''
         # Get the scene ID from the .pth file
         scene_id = scene_data['scene_id']
         # Get the segments_anno.json file for the scene
@@ -198,33 +188,3 @@ if __name__ == "__main__":
 
                     #Save mask as PNG
                     save_mask_as_png(mask, mask_save_path)
-
-                    '''
-                    output_dir_extracted = (
-                    f"extracted/{image_name.replace('_inst.pkl', '')}"
-                )
-                    
-                    os.makedirs(output_dir_mask, exist_ok=True)
-                    os.makedirs(output_dir_extracted, exist_ok=True)
-
-                    save_mask_as_png(mask, output_filepath)
-                    print(f"Mask saved as {output_filepath}")
-
-                    # Extract the object from the DSLR image using the mask
-                    dslr_image_array = open_image_as_array(dslr_image)
-                    extracted_object = np.array(dslr_image_array.copy())
-                    extracted_object[mask != 255] = 0
-
-                    # Save the extracted object as a PNG file
-                    output_filepath_extracted = (
-                        f"{output_dir_extracted}/extracted_{label_id}"
-                    )
-                    Image.fromarray(extracted_object).save(
-                        output_filepath_extracted + ".png"
-                    )
-                    print(f"Extracted object saved as {output_filepath_extracted}")
-
-                    # Save the camera pose
-                    camera_pose = get_camera_pose_as_npy(imgae_JPG)
-                    np.save(output_dir_extracted + ".npy", camera_pose)
-                    print(f"Matrix saved successfully at {output_dir_extracted}")'''
