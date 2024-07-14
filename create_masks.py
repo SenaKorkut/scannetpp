@@ -7,6 +7,37 @@ import json
 import argparse
 import os 
 
+'''
+def get_camera_pose_as_npy(img_name):
+    for img in transforms_json["frames"]:
+        if img["file_path"] == img_name:
+            transformation_matrix = img["transform_matrix"]
+            transformation_matrix = np.array(transformation_matrix)
+            return transformation_matrix
+    print("Image not found.")
+    return None
+'''
+
+
+def load_json_file(json_filepath):
+    """Load and return the contents of a JSON file."""
+    try:
+        with open(json_filepath, "r") as json_file:
+            data = json.load(json_file)
+        return data
+    except Exception as e:
+        print(f"An error occurred while loading the JSON file: {e}")
+        return None
+    
+def open_image_as_array(image_path):
+    # Open the image file
+    with Image.open(image_path) as img:
+        # Convert the image to RGB format (in case it's not)
+        img = img.convert("RGB")
+        # Convert the image to a NumPy array
+        image_array = np.array(img)
+
+    return image_array
 
 def read_pkl_file(pkl_filepath):
     """Read and return the contents of a .pkl file."""
@@ -76,53 +107,124 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Create masks based on given path files.')
     parser.add_argument('pth_file_dir', type=str, help='Path to the .pth files created by prepare_training_data.py')
     parser.add_argument('rasterized_file_dir', type=str, help='Path to the .pkl files created by rasterize_semantics_2d.py')
-    #parser.add_argument('file3', type=str, help='Path to the third file')
+    parser.add_argument('masks_output_dir', type=str, help='Path to the output masks file')
     
     args = parser.parse_args()
 
-    pth_filepath = args.pth_file_dir
-    pkl_filepath = args.rasterized_file_dir
+    scene_data_filepath = args.pth_file_dir
+    mask_data_filepath = args.rasterized_file_dir
+    mask_output_filepath = args.masks_output_dir
 
     # Get top 10 instance labels from metadata file 
     top_labels_dir = '/storage/user/yez/scannet++/metadata/semantic_benchmark/top100_instance.txt'
     top_labels = get_top_labels(num_labels=10, file_path=top_labels_dir)
+    top_labels = [s.strip() for s in top_labels]
+    print("Top Labels:", top_labels)
 
-    scenes = list_files(pth_filepath)
+    scenes = list_files(scene_data_filepath)
 
     for scene in scenes:
 
-        scene_path = os.path.join(pth_filepath, scene)
+        scene_path = os.path.join(scene_data_filepath, scene)
         # Read .pth file
-        pth_data = read_pth_file(pth_filepath)
-        if pth_data is not None:
-            print("Successfully read the .pth file")
-        
+        scene_data = read_pth_file(scene_path)
+        if scene_data is not None:
+            print("Successfully read the scene file")
+
+        '''dataset_scene_path = os.path.join(dataset_dir, scene.replace(".pth", ""))
+        dslr_scene_path = os.path.join(dataset_scene_path, "dslr", "resized_images")
+        camera_pose_transform_json_path = os.path.join(
+            dataset_scene_path, "dslr", "nerfstudio", "transforms.json"
+        )
+
+        transforms_json = load_json_file(camera_pose_transform_json_path)
+
+        '''
         # Get the scene ID from the .pth file
-        scene_id = pth_data['scene_id']
+        scene_id = scene_data['scene_id']
         # Get the segments_anno.json file for the scene
         segments_anno = get_segments_anno_file(scene_id)
         # Extract segGroups
         seg_groups = segments_anno.get('segGroups', [])
-        segmentation_path = os.path.join(pkl_filepath, scene)
+        array_path = os.path.join(mask_data_filepath, scene_id)
 
-        for image_name in os.listdir(segmentation_path):
+        print("mask_data_filepath", mask_data_filepath)
+        print("scene", scene_id)
+        print("simages_path", array_path)
 
-            pkl_filepath = os.path.join(segmentation_path, image_name)
+        for image_name in os.listdir(array_path):
+
+            image_filepath = os.path.join(array_path, image_name)
             # Read .pkl file
-            pkl_data = read_pkl_file(pkl_filepath)
-            if pkl_data is not None:
-                print("Successfully read the .pkl file:")
+            array_data = read_pth_file(image_filepath)
+            if array_data is not None:
+                print("Successfully read the array")
+            
+            print("image_name", image_name)
+
+            #dslr_image = os.path.join(dslr_scene_path, imgae_JPG)
+
+            #Get instance ids that are visible in the current image
+            visible_instance_ids = np.unique(array_data)
 
             # Filter segGroups based on labels to be used 
             for label in top_labels:
 
-                label_ids = [group['id'] for group in seg_groups if group.get('label') == label]
-                print("Label IDs:", label_ids)
+                #Get available instance ids from the scene based on a specific label
+                instance_ids = [group['id'] for group in seg_groups if group.get('label') == label]
+                print("Instance IDs:", instance_ids)
 
-                for label_id in label_ids:
+                # Create a new list with values present in both lists
+                intersection = [value for value in visible_instance_ids if value in instance_ids]
+
+                # Loop through the intersection list
+                for instance_id in intersection:
                     # Create the mask
-                    mask = create_mask(pkl_data, label_id)
+                    mask = create_mask(array_data, instance_id)
                     # Save the mask as a PNG file
-                    output_filepath = f'mask_{label_id}.png'
+
+                    new_filepath = os.path.join(mask_output_filepath, scene_id) #Create scene folder for masks
+
+                    if not os.path.exists(new_filepath):
+                        os.makedirs(new_filepath)
+
+                    # Extract the image name without the extension
+                    img_name_wo_ext = os.path.splitext(os.path.basename(image_name))[0]
+
+                    # Create mask name
+                    label = label.replace(" ", "-")
+                    mask_name = f"{img_name_wo_ext}_{label}_{instance_id}.png"
+                    mask_save_path = os.path.join(new_filepath, mask_name)
+
+                    #Save mask as PNG
+                    save_mask_as_png(mask, mask_save_path)
+
+                    '''
+                    output_dir_extracted = (
+                    f"extracted/{image_name.replace('_inst.pkl', '')}"
+                )
+                    
+                    os.makedirs(output_dir_mask, exist_ok=True)
+                    os.makedirs(output_dir_extracted, exist_ok=True)
+
                     save_mask_as_png(mask, output_filepath)
                     print(f"Mask saved as {output_filepath}")
+
+                    # Extract the object from the DSLR image using the mask
+                    dslr_image_array = open_image_as_array(dslr_image)
+                    extracted_object = np.array(dslr_image_array.copy())
+                    extracted_object[mask != 255] = 0
+
+                    # Save the extracted object as a PNG file
+                    output_filepath_extracted = (
+                        f"{output_dir_extracted}/extracted_{label_id}"
+                    )
+                    Image.fromarray(extracted_object).save(
+                        output_filepath_extracted + ".png"
+                    )
+                    print(f"Extracted object saved as {output_filepath_extracted}")
+
+                    # Save the camera pose
+                    camera_pose = get_camera_pose_as_npy(imgae_JPG)
+                    np.save(output_dir_extracted + ".npy", camera_pose)
+                    print(f"Matrix saved successfully at {output_dir_extracted}")'''
