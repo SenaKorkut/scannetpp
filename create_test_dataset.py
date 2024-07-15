@@ -3,6 +3,7 @@ from PIL import Image
 import json
 import argparse
 import os 
+import torch
 
 
 def get_camera_pose_as_npy(img_name):
@@ -10,7 +11,23 @@ def get_camera_pose_as_npy(img_name):
         if img["file_path"] == img_name:
             transformation_matrix = img["transform_matrix"]
             transformation_matrix = np.array(transformation_matrix)
-            return transformation_matrix
+
+            opengl_to_colmap = torch.tensor(
+                [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]],
+                dtype=torch.float32,
+            )
+
+            transformation_matrix_1 = torch.matmul(
+                opengl_to_colmap,
+                torch.tensor(
+                    transformation_matrix,
+                    dtype=torch.float32,
+                ),
+            )
+
+            transformation_matrix_3x4 = transformation_matrix_1[:-1, :]
+
+            return transformation_matrix_3x4
     print("Image not found.")
     return None
 
@@ -114,9 +131,9 @@ if __name__ == "__main__":
                 os.makedirs(f"{output_dir}/{out_folder_name}")
             output_filepath_extracted = (f"{output_dir}/{out_folder_name}/{image_name}")
             Image.fromarray(extracted_object).save(output_filepath_extracted + ".png")
-            print(f"Extracted object saved as {output_filepath_extracted}")
+            #print(f"Extracted object saved as {output_filepath_extracted}")
 
             # Save the corresponding camera pose as a .npy file
             camera_pose = get_camera_pose_as_npy(f'{image_name}.JPG')
             np.save(output_filepath_extracted + ".npy", camera_pose)
-            print(f"Matrix saved successfully at {output_filepath_extracted}")
+            #print(f"Matrix saved successfully at {output_filepath_extracted}")
