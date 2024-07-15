@@ -74,11 +74,16 @@ def get_segments_anno_file(scene_id):
     scene_dir = f'{dataset_dir}/{scene_id}'
     segments_anno_json_dir = f'{scene_dir}/scans/segments_anno.json'
 
-    # Read the segments_anno.json file as a json file 
-    with open(segments_anno_json_dir, 'r') as f:
-        segments_anno = json.load(f)
+    if os.path.exists(segments_anno_json_dir):
+
+        # Read the segments_anno.json file as a json file 
+        with open(segments_anno_json_dir, 'r') as f:
+            segments_anno = json.load(f)
     
-    return segments_anno
+        return segments_anno
+    else:
+        print("Segments_anno.json file not found.")
+        return None
 
 def get_top_labels(num_labels, file_path):
     # Open the file in read mode
@@ -99,6 +104,9 @@ def list_files(directory):
     except Exception as e:
         print(f"Error accessing directory {directory}: {e}")
         return []
+    
+def count_pixels(instance_id, mask):
+    return np.sum(mask == instance_id)
 
 if __name__ == "__main__":
 
@@ -115,76 +123,93 @@ if __name__ == "__main__":
     mask_output_filepath = args.masks_output_dir
 
     # Get top 10 instance labels from metadata file 
-    top_labels_dir = '/storage/user/yez/scannet++/metadata/semantic_benchmark/top100_instance.txt'
-    top_labels = get_top_labels(num_labels=2, file_path=top_labels_dir)
-    top_labels = [s.strip() for s in top_labels]
+    #top_labels_dir = '/storage/user/yez/scannet++/metadata/semantic_benchmark/top100_instance.txt'
+    #top_labels = get_top_labels(num_labels=2, file_path=top_labels_dir)
+    #top_labels = [s.strip() for s in top_labels]
+    top_labels = ['chair', 'table', 'office chair', 'cabinet', 'bookshelf', 'sofa', 'bed', 'monitor', 'storage cabinet', 'door']
     print("Top Labels:", top_labels)
 
     scenes = list_files(scene_data_filepath)
+
 
     for scene in scenes:
 
         scene_path = os.path.join(scene_data_filepath, scene)
         # Read .pth file
         scene_data = read_pth_file(scene_path)
-        if scene_data is not None:
-            print("Successfully read the scene file")
 
         # Get the scene ID from the .pth file
         scene_id = scene_data['scene_id']
         # Get the segments_anno.json file for the scene
         segments_anno = get_segments_anno_file(scene_id)
-        # Extract segGroups
-        seg_groups = segments_anno.get('segGroups', [])
-        array_path = os.path.join(mask_data_filepath, scene_id)
 
-        print("mask_data_filepath", mask_data_filepath)
-        print("scene", scene_id)
-        print("simages_path", array_path)
+        if segments_anno is not None:
+            # Extract segGroups
+            seg_groups = segments_anno.get('segGroups', [])
+            array_path = os.path.join(mask_data_filepath, scene_id)
+            mask_info_dict = {}
 
-        for image_name in os.listdir(array_path):
+            print("scene", scene_id)
+            if os.path.exists(array_path):
+                for image_name in os.listdir(array_path):
 
-            image_filepath = os.path.join(array_path, image_name)
-            # Read .pkl file
-            array_data = read_pth_file(image_filepath)
-            if array_data is not None:
-                print("Successfully read the array")
-            
-            print("image_name", image_name)
+                    image_filepath = os.path.join(array_path, image_name)
+                    # Read .pkl file
+                    array_data = read_pth_file(image_filepath)
+                    
+                    #Get instance ids that are visible in the current image
+                    visible_instance_ids = np.unique(array_data)
 
-            #dslr_image = os.path.join(dslr_scene_path, imgae_JPG)
+                    # Filter segGroups based on labels to be used 
+                    for label in top_labels:
 
-            #Get instance ids that are visible in the current image
-            visible_instance_ids = np.unique(array_data)
+                        #Get available instance ids from the scene based on a specific label
+                        instance_ids = [group['id'] for group in seg_groups if group.get('label') == label]
+                        #print("Instance IDs:", instance_ids)
 
-            # Filter segGroups based on labels to be used 
-            for label in top_labels:
+                        # Create a new list with values present in both lists
+                        intersection = [value for value in visible_instance_ids if value in instance_ids]
 
-                #Get available instance ids from the scene based on a specific label
-                instance_ids = [group['id'] for group in seg_groups if group.get('label') == label]
-                print("Instance IDs:", instance_ids)
+                        # Loop through the intersection list
+                        for instance_id in intersection:
+                            
+                            pixel_count = count_pixels(instance_id, array_data)
 
-                # Create a new list with values present in both lists
-                intersection = [value for value in visible_instance_ids if value in instance_ids]
+                            key = f"{label}_{instance_id}"
 
-                # Loop through the intersection list
-                for instance_id in intersection:
-                    # Create the mask
-                    mask = create_mask(array_data, instance_id)
-                    # Save the mask as a PNG file
+                            if key not in mask_info_dict:
+                                print("Key not in mask info dict", key)
+                                mask_info_dict[key] = []
 
-                    new_filepath = os.path.join(mask_output_filepath, scene_id) #Create scene folder for masks
+                            mask_info = {
+                                'pixel_count': pixel_count,
+                                'label': label,
+                                'instance_id': instance_id,
+                                'image_name': image_name
+                            }
+                            mask_info_dict[key].append(mask_info)
+                for key, mask_info_list in mask_info_dict.items():
+                    mask_info_list = sorted(mask_info_list, key=lambda x: x['pixel_count'], reverse=True)
 
-                    if not os.path.exists(new_filepath):
-                        os.makedirs(new_filepath)
+                    if len(mask_info_list) >= 5:
+                        top_5_masks = mask_info_list[:5]
+                        print("Top 5 Masks:", top_5_masks)
 
-                    # Extract the image name without the extension
-                    img_name_wo_ext = os.path.splitext(os.path.basename(image_name))[0]
+                        for mask_info in top_5_masks:
+                            mask_instance_id = mask_info['instance_id']
+                            mask_label = mask_info['label']
+                            mask_image_name = mask_info['image_name']
+                            image_filepath = os.path.join(array_path, mask_image_name)
+                            array_data = read_pth_file(image_filepath)
+                            mask = create_mask(array_data, mask_instance_id)
 
-                    # Create mask name
-                    label = label.replace(" ", "-")
-                    mask_name = f"{img_name_wo_ext}_{label}_{instance_id}.png"
-                    mask_save_path = os.path.join(new_filepath, mask_name)
+                            new_filepath = os.path.join(mask_output_filepath, scene_id)
+                            if not os.path.exists(new_filepath):
+                                os.makedirs(new_filepath)
 
-                    #Save mask as PNG
-                    save_mask_as_png(mask, mask_save_path)
+                            img_name_wo_ext = os.path.splitext(os.path.basename(mask_image_name))[0]
+                            mask_label = mask_label.replace(" ", "-")
+                            mask_name = f"{img_name_wo_ext}_{mask_label}_{mask_instance_id}.png"
+                            mask_save_path = os.path.join(new_filepath, mask_name)
+
+                            save_mask_as_png(mask, mask_save_path)
