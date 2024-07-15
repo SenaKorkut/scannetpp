@@ -115,18 +115,25 @@ if __name__ == "__main__":
     parser.add_argument('pth_file_dir', type=str, help='Path to the .pth files created by prepare_training_data.py')
     parser.add_argument('rasterized_file_dir', type=str, help='Path to the .pkl files created by rasterize_semantics_2d.py')
     parser.add_argument('masks_output_dir', type=str, help='Path to the output masks file')
+    parser.add_argument('difficult_labels', type=bool, help='Set to true if you want to get masks for difficult labels')
+
     
     args = parser.parse_args()
 
     scene_data_filepath = args.pth_file_dir
     mask_data_filepath = args.rasterized_file_dir
     mask_output_filepath = args.masks_output_dir
+    difficult_labels = args.difficult_labels
+
 
     # Get top 10 instance labels from metadata file 
     #top_labels_dir = '/storage/user/yez/scannet++/metadata/semantic_benchmark/top100_instance.txt'
     #top_labels = get_top_labels(num_labels=2, file_path=top_labels_dir)
     #top_labels = [s.strip() for s in top_labels]
-    top_labels = ['chair', 'table', 'office chair', 'cabinet', 'bookshelf', 'sofa', 'bed', 'monitor', 'storage cabinet', 'door']
+    if difficult_labels:
+        top_labels = ['blinds', 'curtain', 'blanket']
+    else:
+        top_labels = ['chair', 'table', 'office chair', 'cabinet', 'bookshelf', 'sofa', 'bed', 'monitor', 'storage cabinet', 'door']
     print("Top Labels:", top_labels)
 
     scenes = list_files(scene_data_filepath)
