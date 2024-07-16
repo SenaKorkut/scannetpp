@@ -14,14 +14,15 @@ def display_segmentation_image(segmentation_array):
     plt.imshow(segmentation_array, cmap='viridis')
     plt.title("Instance Segmentation Result")
     plt.axis('off')  # Hide the axis
-    plt.savefig('/usr/prakt/s0090/scannetpp/example_plot_3.png')
+    plt.savefig('/usr/prakt/s0090/scannetpp/presentation_plot.png')
 
 # Path to the pickle file
-filepath = "/usr/prakt/s0090/segmentation_scene_results/DSC00633_inst.pkl"
+filepath = "/storage/user/yez/scannet++/mask_data/8b5caf3398/DSC02580.pth"
 
 # Load the segmentation result from the pickle file
-segmentation_array = load_pickle_file(filepath)
-pth_data_dir = '/usr/prakt/s0090/demo_annotations/98b4ec142f.pth'
+# segmentation_array = load_pickle_file(filepath)
+segmentation_array = torch.load(filepath)
+#pth_data_dir = '/storage/user/yez/scannet++/pth_data/8b5caf3398.pth'
 #pth_data = torch.load(pth_data_dir)
 #obj_ids = np.unique(pth_data['vtx_instance_anno_id'])
 #print(obj_ids)
