@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
                     if len(mask_info_list) >= 5:
                         top_5_masks = mask_info_list[:5]
-                        print("Top 5 Masks:", top_5_masks)
+                        #print("Top 5 Masks:", top_5_masks)
 
                         for mask_info in top_5_masks:
                             mask_instance_id = mask_info['instance_id']
